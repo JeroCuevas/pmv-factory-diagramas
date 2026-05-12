@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>PMV Factory · Dashboard Fachadas</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #0f0f1e;
+            --panel: #1a1a2e;
+            --panel-light: #252540;
+            --accent: #f59e0b;
+            --good: #10b981;
+            --bad: #ef4444;
+            --muted: #8a8aa0;
+            --text: #f0f0f8;
+            --border: #2a2a40;
+        }
+        * { box-sizing: border-box; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            margin: 0;
+            padding: 24px;
+            min-height: 100vh;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        header h1 { margin: 0; font-size: 1.6rem; }
+        header .meta { color: var(--muted); font-size: 0.9rem; }
+        #status { padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; }
+        #status.ok { background: var(--good); color: white; }
+        #status.err { background: var(--bad); color: white; }
+        #status.loading { background: var(--accent); color: white; }
+
+        .kpis {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .kpi {
+            background: var(--panel);
+            padding: 16px 20px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+        .kpi .label {
+            color: var(--muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .kpi .value {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+        .kpi.gold .value { color: var(--accent); }
+        .kpi.good .value { color: var(--good); }
+        .kpi.bad .value { color: var(--bad); }
+
+        .charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        .chart-card {
+            background: var(--panel);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            min-height: 320px;
+        }
+        .chart-card h3 { margin: 0 0 12px; font-size: 1rem; }
+
+        .table-wrap {
+            background: var(--panel);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            overflow-x: auto;
+        }
+        .table-wrap h3 { margin: 0 0 12px; font-size: 1rem; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+        th, td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th { color: var(--muted); font-weight: 500; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }
+        tr:hover td { background: var(--panel-light); }
+        .badge {
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .badge.gold { background: var(--accent); color: white; }
+        .badge.fase-enriquecido { background: var(--panel-light); color: var(--text); }
+        .badge.fase-comercial_directo { background: var(--accent); color: white; }
+        .badge.fase-render_enviado { background: var(--good); color: white; }
+        .badge.fase-descartado { background: var(--bad); color: white; }
+        .empty { color: var(--muted); text-align: center; padding: 40px; }
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <h1>🏭 PMV Factory · Dashboard Fachadas</h1>
+            <div class="meta">Funnel de leads cualificados · Datos en vivo desde Supabase</div>
+        </div>
+        <div id="status" class="loading">Cargando…</div>
+    </header>
+
+    <section class="kpis" id="kpis"></section>
+
+    <section class="charts">
+        <div class="chart-card"><h3>📊 Distribución por fase</h3><canvas id="chart-fase"></canvas></div>
+        <div class="chart-card"><h3>📈 Filtros de Oro mensuales</h3><canvas id="chart-mensual"></canvas></div>
+        <div class="chart-card"><h3>🏢 Distribución por tamaño</h3><canvas id="chart-tamano"></canvas></div>
+        <div class="chart-card"><h3>💶 Estado de presupuesto</h3><canvas id="chart-presupuesto"></canvas></div>
+    </section>
+
+    <section class="table-wrap">
+        <h3>📋 Últimos leads</h3>
+        <table id="tabla-leads">
+            <thead>
+                <tr>
+                    <th>Fecha</th><th>Nombre</th><th>Empresa</th><th>Tel.</th><th>Tamaño</th><th>Zona</th><th>Web</th><th>Filtro Oro</th><th>Fase</th>
+                </tr>
+            </thead>
+            <tbody><tr><td colspan="9" class="empty">Cargando…</td></tr></tbody>
+        </table>
+    </section>
+
+<script>
+const SUPABASE_URL = 'https://app-supabase.pmvfactory.top';
+// Cipher (XOR + base64) del anon key. Solo se descifra con el password correcto.
+const CIPHER_B64 = 'ATAYL1JyLhADInksF04YdywRIwItJwByU3YETwUgQz0Udxt/TB0dHgMAEQ1JV38BIAJZCiV9PAAXGlhFDQUTKFd8DjM8KAAoK3s4BwsbWScTEAUNWFZ/LCUHcgolfRIMEiEyIA0GOwZIezc8fQZ3MDV7FQcVNCseAwARDVxQBTglBFokOnsVJRs3LjRXBDgGR3YjSWINSgorV2h2NyIdNVcaFTBgDToDEw4FETpGIgQ9GyxJJzkeNVljfBt8LgQW';
+
+function xorDecrypt(b64, password) {
+    const bin = atob(b64);
+    const passBytes = new TextEncoder().encode(password);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) {
+        out[i] = bin.charCodeAt(i) ^ passBytes[i % passBytes.length];
+    }
+    return new TextDecoder().decode(out);
+}
+
+let ANON_KEY = null;
+let headers = null;
+
+async function get(view) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${view}?select=*`, { headers });
+    if (!r.ok) throw new Error(`${view}: ${r.status}`);
+    return r.json();
+}
+
+const PALETTE = ['#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+
+function renderKpis(funnel) {
+    const f = funnel[0] || {};
+    const pct = (n, d) => d > 0 ? Math.round(100 * n / d) + '%' : '—';
+    document.getElementById('kpis').innerHTML = `
+      <div class="kpi"><div class="label">Total leads</div><div class="value">${f.total_leads || 0}</div></div>
+      <div class="kpi gold"><div class="label">Filtros de Oro</div><div class="value">${f.filtro_oro || 0}</div></div>
+      <div class="kpi"><div class="label">Comerciales avisados</div><div class="value">${f.comercial_avisado || 0}</div></div>
+      <div class="kpi good"><div class="label">Renders enviados</div><div class="value">${f.renders_enviados || 0}</div></div>
+      <div class="kpi"><div class="label">Cierres pendientes</div><div class="value">${f.cierres_pendientes || 0}</div></div>
+      <div class="kpi bad"><div class="label">Descartados</div><div class="value">${f.descartados || 0}</div></div>
+      <div class="kpi"><div class="label">Conversión a Oro</div><div class="value">${pct(f.filtro_oro, f.total_leads)}</div></div>
+    `;
+}
+
+function renderChart(canvasId, type, labels, data, label) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    return new Chart(ctx, {
+        type,
+        data: {
+            labels,
+            datasets: [{
+                label: label || '',
+                data,
+                backgroundColor: type === 'line' ? PALETTE[0] : labels.map((_, i) => PALETTE[i % PALETTE.length]),
+                borderColor: type === 'line' ? PALETTE[0] : undefined,
+                tension: 0.3,
+                fill: type === 'line'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { labels: { color: '#f0f0f8' }, display: type !== 'line' && type !== 'bar' }
+            },
+            scales: (type === 'pie' || type === 'doughnut') ? {} : {
+                y: { ticks: { color: '#f0f0f8' }, grid: { color: '#2a2a40' } },
+                x: { ticks: { color: '#f0f0f8' }, grid: { color: '#2a2a40' } }
+            }
+        }
+    });
+}
+
+function renderTabla(leads) {
+    const tbody = document.querySelector('#tabla-leads tbody');
+    if (!leads.length) {
+        tbody.innerHTML = '<tr><td colspan="9" class="empty">Aún no hay leads. Activa WF1 y espera el primero.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = leads.map(l => {
+        const fecha = new Date(l.created_at).toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'numeric' });
+        const fase = l.fase || 'enriquecido';
+        return `<tr>
+            <td>${fecha}</td>
+            <td>${l.nombre || '—'}</td>
+            <td>${l.empresa_nombre || '—'}</td>
+            <td>${l.telefono || '—'}</td>
+            <td>${l.tamano || '—'}</td>
+            <td>${l.zona || '—'}</td>
+            <td>${l.web_score != null ? l.web_score + '/10' : '—'}</td>
+            <td>${l.filtro_oro ? '<span class="badge gold">🏆 ORO</span>' : '—'}</td>
+            <td><span class="badge fase-${fase}">${fase}</span></td>
+        </tr>`;
+    }).join('');
+}
+
+async function load() {
+    const status = document.getElementById('status');
+    try {
+        const [funnel, fases, mensual, tamano, presupuesto, leads] = await Promise.all([
+            get('v_funnel'),
+            get('v_leads_por_fase'),
+            get('v_filtros_oro_mensual'),
+            get('v_distribucion_tamano'),
+            get('v_estado_presupuesto'),
+            get('v_leads_recientes')
+        ]);
+
+        renderKpis(funnel);
+        renderChart('chart-fase', 'doughnut',
+            fases.map(r => r.fase),
+            fases.map(r => r.total)
+        );
+        renderChart('chart-mensual', 'line',
+            mensual.slice().reverse().map(r => r.mes),
+            mensual.slice().reverse().map(r => r.oros),
+            'Filtros de Oro'
+        );
+        renderChart('chart-tamano', 'bar',
+            tamano.map(r => r.tamano),
+            tamano.map(r => r.industriales),
+            'Industriales'
+        );
+        renderChart('chart-presupuesto', 'pie',
+            presupuesto.map(r => r.estado_presupuesto),
+            presupuesto.map(r => r.total)
+        );
+        renderTabla(leads);
+
+        status.textContent = 'Conectado · ' + new Date().toLocaleTimeString('es-ES');
+        status.className = 'ok';
+    } catch (e) {
+        status.textContent = 'Error: ' + e.message;
+        status.className = 'err';
+        console.error(e);
+    }
+}
+
+async function tryUnlock(password) {
+    const candidate = xorDecrypt(CIPHER_B64, password);
+    // Validar pidiendo /rest/v1/v_funnel
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/v_funnel?select=total_leads&limit=1`, {
+        headers: { apikey: candidate, Authorization: `Bearer ${candidate}` }
+    });
+    if (!r.ok) throw new Error('Password incorrecto');
+    ANON_KEY = candidate;
+    headers = { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` };
+    return true;
+}
+
+function showLockScreen() {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,15,30,0.97);display:flex;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(8px);';
+    overlay.innerHTML = `
+      <form id="unlock-form" style="background:var(--panel);padding:32px;border-radius:14px;border:1px solid var(--border);min-width:320px;box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+        <h2 style="margin:0 0 8px;font-size:1.3rem;color:var(--text);">🔒 Dashboard PMV Fachadas</h2>
+        <p style="margin:0 0 20px;color:var(--muted);font-size:0.9rem;">Introduce la password compartida.</p>
+        <input id="unlock-pwd" type="password" placeholder="Password" autocomplete="off"
+               style="width:100%;padding:10px 12px;background:var(--panel-light);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:1rem;font-family:monospace;">
+        <button type="submit" style="margin-top:12px;width:100%;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:1rem;">Desbloquear</button>
+        <div id="unlock-err" style="color:var(--bad);margin-top:8px;font-size:0.85rem;min-height:18px;"></div>
+      </form>`;
+    document.body.appendChild(overlay);
+    const input = overlay.querySelector('#unlock-pwd');
+    input.focus();
+    overlay.querySelector('#unlock-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const err = overlay.querySelector('#unlock-err');
+        err.textContent = 'Verificando…';
+        try {
+            await tryUnlock(input.value);
+            sessionStorage.setItem('dashboardPwd', input.value);
+            overlay.remove();
+            await load();
+            setInterval(load, 30000);
+        } catch (e) {
+            err.textContent = '✗ Password incorrecto';
+            input.value = '';
+            input.focus();
+        }
+    });
+}
+
+(async () => {
+    const saved = sessionStorage.getItem('dashboardPwd');
+    if (saved) {
+        try {
+            await tryUnlock(saved);
+            await load();
+            setInterval(load, 30000);
+            return;
+        } catch (e) {
+            sessionStorage.removeItem('dashboardPwd');
+        }
+    }
+    showLockScreen();
+})();
+</script>
+</body>
+</html>
