@@ -131,7 +131,7 @@
 <div class="container">
     <header>
         <h1>🏭 Sistema PMV Factory — Funnel Fachadas</h1>
-        <p>Cualificación automatizada de leads · 5 workflows + datastore central</p>
+        <p>Cualificación automatizada de leads · 8 workflows + datastore central</p>
     </header>
 
     <nav>
@@ -150,13 +150,13 @@ flowchart TD
     LEAD[📘 Lead llega<br/>FB Lead Ads form Fachadas]
     LEAD --> ENRICH[🔍 Enriquecimiento automático<br/>scrape web + RRSS + análisis IA]
 
-    ENRICH --> FORO{🏆 Filtro de Oro<br/>Industrial + T3/T4<br/>+ Cercano<br/>+ Web ≤ 6/10}
+    ENRICH --> FORO{🏆 Filtro de Oro<br/>AND lógico de 4<br/>Industrial + T3/T4<br/>+ Vega Baja/Alicante<br/>+ Desajuste imagen}
 
-    FORO -->|✅ los 3| ALERTA1[📧 Email comercial INMEDIATO<br/>Lead caliente — contacto directo]
-    FORO -->|❌ no cumple| BOT[💬 Agente WhatsApp<br/>conversación cualificadora]
+    FORO -->|✅ las 4 condiciones| ALERTA1[📧 Email comercial INMEDIATO<br/>Lead caliente — contacto directo]
+    FORO -->|❌ falla cualquiera| BOT[💬 Agente WhatsApp<br/>conversación cualificadora]
 
     BOT --> SEÑALES{🚨 Señales detectadas<br/>en la conversación}
-    SEÑALES -->|Apertura nueva<br/>Urgencia<br/>Fachada >20m| ALERTA2[📧 Email comercial<br/>oportunidad intermedia]
+    SEÑALES -->|Apertura nueva<br/>Urgencia<br/>Fachada >20m<br/>Renovación oportunidad-oro<br/>mudanza · moderniza · visibilidad| ALERTA2[📧 Email comercial<br/>oportunidad intermedia]
     SEÑALES -->|Presupuesto<br/>declarado| PRESU{💶 Filtro económico}
 
     PRESU -->|≥5.000€ o<br/>no definido| FOTO[📸 Bot pide foto fachada]
@@ -180,7 +180,7 @@ flowchart TD
 
     <section id="arquitectura">
         <h2>2. Arquitectura técnica (workflows + datastore)</h2>
-        <p class="lead">5 workflows orquestados con una tabla Postgres como fuente única de verdad del estado del lead. Verde = ya construido (refactor), naranja = nuevo a construir.</p>
+        <p class="lead">8 workflows orquestados con una tabla Postgres como fuente única de verdad del estado del lead. WF2 actúa como router → WF2.5 (Brain genérico PMV) o WF2.6 (Brain especializado Fachadas) según campo BD. WF6 espeja toda la conversación en Chatwoot.</p>
         <div class="mermaid">
 flowchart LR
     subgraph EXT[" "]
@@ -205,30 +205,60 @@ flowchart LR
         E1-->E2-->E3-->E4-->E5
     end
 
-    subgraph WF2["WF2 · Agente WA 🟢 refactor"]
+    subgraph CW[" "]
         direction TB
-        A1[Webhook + Buffer]
-        A2[AI Brain Fachadas<br/>respuesta + señales]
-        A3{Señales}
-        A1-->A2-->A3
+        CHAT[💼 Chatwoot]
     end
 
-    subgraph WF3["WF3 · Render 🟠 nuevo"]
+    subgraph WF2["WF2 · Router WA 🟢"]
         direction TB
-        R1[Descarga foto]
-        R2[Nano Banana]
-        R3[Envía render]
-        R1-->R2-->R3
+        A1[Webhook + Buffer Redis]
+        A2{¿Es imagen?}
+        A3[Find Lead Fachadas]
+        A4{¿Is Fachadas?}
+        A5[Extract Signals<br/>Persist Signals]
+        A6{Decide Alerts}
+        A1-->A2
+        A2-->|texto|A3
+        A3-->A4
+        A4-->A5
+        A5-->A6
     end
 
-    subgraph WF4["WF4 · Alerta 🟠 nuevo"]
+    subgraph WF25["WF2.5 · AI Brain PMV 🟢"]
         direction TB
-        AL[Plantilla por tipo<br/>→ email]
+        B25[AI Agent + Memoria<br/>RAG PGVector<br/>Verificador estructurado]
     end
 
-    subgraph WF5["WF5 · Descarte 🟠 nuevo"]
+    subgraph WF26["WF2.6 · AI Brain Fachadas 🟢"]
         direction TB
-        DC[Mensaje cordial + RRSS]
+        B26[AI Agent especializado<br/>Memoria + RAG Fachadas<br/>Verificador + Detector]
+    end
+
+    subgraph WF3["WF3 · Render Nano Banana 🟢"]
+        direction TB
+        R1[Get YCloud Media URL]
+        R2[Download Image]
+        R3[Nano Banana Render]
+        R4[Decode + Upload YCloud]
+        R5[Enviar Render WA]
+        R6[Marcar Render BD]
+        R1-->R2-->R3-->R4-->R5-->R6
+    end
+
+    subgraph WF4["WF4 · Alerta Comercial 🟢"]
+        direction TB
+        AL[Construir email plantilla<br/>→ Gmail → Marcar avisado]
+    end
+
+    subgraph WF5["WF5 · Descarte Cordial 🟢"]
+        direction TB
+        DC[Build Message<br/>→ YCloud → Marcar descartado]
+    end
+
+    subgraph WF6["WF6 · Chatwoot Mirror 🟢"]
+        direction TB
+        MR[Espeja mensaje in/out<br/>en conversación Chatwoot]
     end
 
     FB ==>|trigger| WF1
@@ -236,11 +266,16 @@ flowchart LR
     WF1 -.->|guarda| DB
 
     WA ==>|webhook| WF2
-    WF2 <-.->|señales| DB
-    WF2 -->|apertura/urgencia/>20m<br/>o render listo| WF4
-    WF2 -->|ppto <3000| WF5
+    WF2 -.->|mirror in| WF6
     WF2 -->|cualificado + foto| WF3
-    WF2 -->|continúa| WA
+    WF2 -->|texto rama Fachadas| WF26
+    WF2 -->|texto otros| WF25
+    WF2 -->|signals oro/urgencia| WF4
+    WF2 -->|ppto <3000| WF5
+    WF25 -->|respuesta| WA
+    WF26 -->|respuesta| WA
+    WF2 <-.->|estado lead| DB
+    WF2 -.->|mirror out| WF6
 
     WF3 -->|envía| WA
     WF3 -->|render listo| WF4
@@ -248,10 +283,12 @@ flowchart LR
 
     WF4 -->|email| EMAIL
     WF5 -->|mensaje| WA
+    WF6 -->|mensaje espejo| CHAT
 
     JINA -.->|scraping| WF1
     GEMINI -.->|IA| WF1
-    GEMINI -.->|IA| WF2
+    GEMINI -.->|IA| WF25
+    GEMINI -.->|IA| WF26
     NANO -.->|render| WF3
 
     classDef existing fill:#d4f4dd,stroke:#2d7a3a,color:#000
@@ -259,14 +296,12 @@ flowchart LR
     classDef external fill:#f0f0f0,stroke:#666,color:#000
     classDef datastore fill:#cce5ff,stroke:#0066cc,color:#000
 
-    class WF1,WF2 existing
-    class WF3,WF4,WF5 new
-    class FB,WA,EMAIL,JINA,GEMINI,NANO external
+    class WF1,WF2,WF25,WF26,WF3,WF4,WF5,WF6 existing
+    class FB,WA,EMAIL,JINA,GEMINI,NANO,CHAT external
     class DB datastore
         </div>
         <div class="legend">
-            <span class="existing">Ya construido (refactor)</span>
-            <span class="new">A construir</span>
+            <span class="existing">Workflow construido y activo</span>
             <span class="external">Servicio externo</span>
             <span class="datastore">Datastore</span>
         </div>
@@ -301,8 +336,10 @@ sequenceDiagram
     autonumber
     actor C as 📱 Cliente
     participant Y as ☁️ YCloud
-    participant W2 as 🤖 WF2<br/>Agente WA
+    participant W2 as 🤖 WF2<br/>Router WA
+    participant W26 as 🧠 WF2.6<br/>Brain Fachadas
     participant DB as 🗄️ Postgres
+    participant W6 as 💼 WF6<br/>Chatwoot Mirror
     participant W4 as 📧 WF4<br/>Alerta
     participant W3 as 🎨 WF3<br/>Render
     actor COM as 👤 Comercial
@@ -310,32 +347,37 @@ sequenceDiagram
     Note over C,COM: Lead ya enriquecido (no pasó Filtro Oro)
 
     C->>Y: "Necesito rotular mi nave,<br/>abro en 2 sem, 25m fachada"
-    Y->>W2: webhook + buffer 6s
-    W2->>DB: lee estado lead
-    W2->>W2: AI Brain → respuesta + señales
-    Note right of W2: urgencia: alta,<br/>dimensiones: 25,<br/>fase: apertura_nueva
-    W2->>DB: guarda señales
-    W2->>W4: alerta urgencia + fachada_grande
+    Y->>W2: webhook + buffer Redis
+    W2->>W6: mirror in (Chatwoot)
+    W2->>DB: Find Lead Fachadas
+    W2->>W26: Is Fachadas = true → invocar
+    W26->>W26: AI Agent + RAG + verificador
+    Note right of W26: urgencia: alta,<br/>dimensiones: 25,<br/>fase: apertura_nueva
+    W26->>DB: Persist Signals
+    W2->>W4: Decide Alerts → urgencia + fachada_grande
     W4->>COM: 📧 "Lead caliente, 25m, urge"
-    W2->>Y: respuesta WA (chunks)
+    W2->>Y: respuesta WA (chunks + typing)
+    W2->>W6: mirror out (Chatwoot)
     Y-->>C: 4 mensajes con typing
 
     C->>Y: "Ppto flexible, calidad lo primero"
     Y->>W2: webhook
-    W2->>W2: AI Brain → señales
-    Note right of W2: estado_presupuesto: cualificado
-    W2->>DB: actualiza presupuesto
+    W2->>W26: invocar Brain Fachadas
+    W26->>W26: detecta budget_tier: cualificado
+    W26->>DB: actualiza presupuesto
     W2->>Y: "¿Me mandas foto de la fachada?"
 
     C->>Y: 📸 foto fachada
     Y->>W2: webhook con media_id
-    W2->>W3: trigger render
+    Note right of W2: rama imagen<br/>Is Image = true
+    W2->>DB: Update Foto URL
+    W2->>W3: WF3 Render Dispatch
     W3->>Y: descarga media
     W3->>W3: Nano Banana (15-30s)
-    W3->>Y: envía render
+    W3->>Y: upload render + envía WA
     Y-->>C: 🎨 imagen renderizada
-    W3->>DB: render_url
-    W3->>W4: alerta render_listo
+    W3->>DB: marca render_url
+    W3->>W4: WF4 Render Listo
     W4->>COM: 📧 "Cerrar visita técnica"
         </div>
     </section>
@@ -387,7 +429,7 @@ erDiagram
     </section>
 
     <footer>
-        Sistema PMV Factory · Funnel Fachadas · Generado 2026-05-12
+        Sistema PMV Factory · Funnel Fachadas · Actualizado 2026-05-13
     </footer>
 </div>
 <script>
