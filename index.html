@@ -98,7 +98,6 @@
                 page-break-before: always;
                 page-break-inside: avoid;
                 break-before: page;
-                break-inside: avoid;
                 box-shadow: none;
                 margin: 0;
                 padding: 16px 8px;
@@ -131,40 +130,40 @@
 <div class="container">
     <header>
         <h1>🏭 Sistema PMV Factory — Funnel Fachadas</h1>
-        <p>Cualificación automatizada de leads · 8 workflows + datastore central</p>
+        <p>Cualificación automatizada con agente determinista slot-filling · 8 workflows + datastore central</p>
     </header>
 
     <nav>
         <a href="#funnel">1. Funnel de negocio</a>
         <a href="#arquitectura">2. Arquitectura</a>
         <a href="#estados">3. Estados del lead</a>
-        <a href="#secuencia">4. Conversación</a>
+        <a href="#secuencia">4. Conversación 6-slot</a>
         <a href="#erd">5. Modelo de datos</a>
     </nav>
 
     <section id="funnel">
         <h2>1. Funnel general (vista de negocio)</h2>
-        <p class="lead">Las 3 fases de cualificación. Un lead puede salir por: contacto directo del comercial (Filtro de Oro), cierre de visita técnica tras render, o descarte cordial por presupuesto.</p>
+        <p class="lead">Las 3 fases de cualificación. Un lead puede salir por: contacto directo del comercial (Filtro de Oro), cierre de visita técnica tras render, o descarte cordial por presupuesto. El agente conversacional ahora es <b>determinista</b>: pide los 6 datos en orden fijo, nunca repite, nunca degrada información ya capturada.</p>
         <div class="mermaid">
 flowchart TD
     LEAD[📘 Lead llega<br/>FB Lead Ads form Fachadas]
     LEAD --> ENRICH[🔍 Enriquecimiento automático<br/>scrape web + RRSS + análisis IA]
 
-    ENRICH --> FORO{🏆 Filtro de Oro<br/>AND lógico de 4<br/>Industrial + T3/T4<br/>+ Vega Baja/Alicante<br/>+ Desajuste imagen}
+    ENRICH --> FORO{🏆 Filtro de Oro<br/>Industrial + T3/T4<br/>+ Cercano<br/>+ Web ≤ 6/10}
 
-    FORO -->|✅ las 4 condiciones| ALERTA1[📧 Email comercial INMEDIATO<br/>Lead caliente — contacto directo]
-    FORO -->|❌ falla cualquiera| BOT[💬 Agente WhatsApp<br/>conversación cualificadora]
+    FORO -->|✅ los 3| ALERTA1[📧 Email comercial INMEDIATO<br/>Lead caliente — contacto directo]
+    FORO -->|❌ no cumple| BOT[💬 Agente WhatsApp determinista<br/>6 slots en orden fijo<br/>presupuesto→dimensiones→motivo<br/>→dirección→estilo→logo]
 
     BOT --> SEÑALES{🚨 Señales detectadas<br/>en la conversación}
-    SEÑALES -->|Apertura nueva<br/>Urgencia<br/>Fachada >20m<br/>Renovación oportunidad-oro<br/>mudanza · moderniza · visibilidad| ALERTA2[📧 Email comercial<br/>oportunidad intermedia]
+    SEÑALES -->|Apertura nueva<br/>Urgencia<br/>Fachada >20m| ALERTA2[📧 Email comercial<br/>oportunidad intermedia]
     SEÑALES -->|Presupuesto<br/>declarado| PRESU{💶 Filtro económico}
 
-    PRESU -->|≥5.000€ o<br/>no definido| FOTO[📸 Bot pide foto fachada]
-    PRESU -->|3-5.000€<br/>o evasivo| REENCUADRE[🔄 Pedagogía<br/>reencuadre de valor]
-    PRESU -->|<3.000€| DESCARTE[❌ Descarte cordial<br/>+ sugiere RRSS]
+    PRESU -->|cualificado<br/>≥5.000€ o abierto| LOGFA[📸 Bot pide logo + fachada<br/>una imagen por turno]
+    PRESU -->|zona_gris<br/>3-5.000€ / evasivo| REENCUADRE[🔄 Reencuadre de valor<br/>solución puntual vs década]
+    PRESU -->|descarte<br/>&lt;3.000€| DESCARTE[❌ Descarte cordial<br/>+ sugiere RRSS / textil]
 
-    FOTO --> RENDER[🎨 Render Nano Banana<br/>fachada transformada]
-    RENDER --> ENVIO[💬 Render enviado por WA]
+    LOGFA --> RENDER[🎨 Render Nano Banana<br/>fachada + logo integrados]
+    RENDER --> ENVIO[💬 Render enviado por WA<br/>+ un comercial te contactará]
     ENVIO --> ALERTA3[📧 Email comercial<br/>cerrar visita técnica]
 
     REENCUADRE -.->|reintenta cualificar| PRESU
@@ -173,135 +172,131 @@ flowchart TD
     classDef good fill:#d4f4dd,stroke:#2d7a3a,color:#000
     classDef bad fill:#eaeaea,stroke:#666,color:#000
     class ALERTA1,ALERTA2,ALERTA3 alert
-    class FOTO,RENDER,ENVIO good
+    class LOGFA,RENDER,ENVIO good
     class DESCARTE bad
         </div>
     </section>
 
     <section id="arquitectura">
-        <h2>2. Arquitectura técnica (workflows + datastore)</h2>
-        <p class="lead">8 workflows orquestados con una tabla Postgres como fuente única de verdad del estado del lead. WF2 actúa como router → WF2.5 (Brain genérico PMV) o WF2.6 (Brain especializado Fachadas) según campo BD. WF6 espeja toda la conversación en Chatwoot.</p>
+        <h2>2. Arquitectura técnica (workflows + datastores)</h2>
+        <p class="lead">8 workflows orquestados con Postgres como fuente única de verdad. El cerebro conversacional <b>WF2.6-SF</b> (naranja) es slot-filling determinista: el código decide qué preguntar y nunca degrada estado; el LLM solo extrae y redacta. Verde = workflows. Azul = datastores. Gris = servicios externos.</p>
         <div class="mermaid">
 flowchart LR
-    subgraph EXT[" "]
+    subgraph EXT[Servicios externos]
         direction TB
         FB[📘 FB Lead Ads]
         WA[💬 WhatsApp YCloud]
         EMAIL[📧 Gmail comercial]
+        SHEETS[📊 Google Sheets<br/>CRM lateral]
+        CHATW[💼 Chatwoot]
         JINA[🌐 Jina Reader]
-        GEMINI[🤖 Gemini Flash]
+        GEMINI[🤖 Gemini 2.5/3.1]
         NANO[🎨 Nano Banana]
     end
 
     DB[(🗄️ Postgres<br/>leads_fachadas<br/>fuente de verdad)]
+    REDIS[(⚡ Redis<br/>buffer mensajes WA)]
+    STORAGE[(📦 Supabase Storage<br/>foto / logo / render)]
+    PGV[(🧠 PGVector<br/>RAG fachadas)]
 
-    subgraph WF1["WF1 · Enrichment 🟢 refactor"]
+    subgraph WF1[WF1 · Lead Enrichment]
         direction TB
-        E1[Normaliza]
-        E2[Scrape web+RRSS]
-        E3[Web score OBJETIVO<br/>10 criterios]
-        E4[Análisis IA<br/>industrial/T1-T4/zona]
-        E5{Filtro Oro?}
-        E1-->E2-->E3-->E4-->E5
+        E1[Normaliza] --> E2[Scrape web+RRSS]
+        E2 --> E3[Web score 10 criterios]
+        E3 --> E4[Análisis IA<br/>industrial / T1-T4 / zona]
+        E4 --> E5{Filtro Oro?}
+        E5 -->|sí| ET1[Template inicial WA]
+        E5 -->|no| ET2[Marca lead enriquecido]
     end
 
-    subgraph CW[" "]
+    subgraph WF2[WF2 · Router WhatsApp]
         direction TB
-        CHAT[💼 Chatwoot]
+        A0[Webhook YCloud] --> A1[Buffer Redis 8s]
+        A1 --> A2{Es imagen?}
+        A2 -->|texto| A3[Find Lead]
+        A3 --> SFC[(llama a<br/>WF2.6-SF)]
+        SFC --> A4[fan-out:<br/>bucle envío<br/>+ Extract Signals<br/>+ Decide Alerts<br/>+ Decide Descarte]
+        A2 -->|imagen| IMG1[Find Lead Image]
+        IMG1 --> IMG2{Datos Completos?<br/>guard PH-aware}
+        IMG2 -->|sí| IMG3{Es Logo?}
+        IMG3 -->|tiene+sin url| IMG4[Subir Logo + Pedir Fachada]
+        IMG3 -->|no| IMG5[Subir Foto → WF3]
+        IMG2 -->|no| IMG6[Pedir Datos WA]
     end
 
-    subgraph WF2["WF2 · Router WA 🟢"]
+    subgraph SF[WF2.6-SF · Slot-Filling Brain]
         direction TB
-        A1[Webhook + Buffer Redis]
-        A2{¿Es imagen?}
-        A3[Find Lead Fachadas]
-        A4{¿Is Fachadas?}
-        A5[Extract Signals<br/>Persist Signals]
-        A6{Decide Alerts}
-        A1-->A2
-        A2-->|texto|A3
-        A3-->A4
-        A4-->A5
-        A5-->A6
+        S1[Cargar Estado<br/>SELECT BD]
+        S1 --> S2[Build Extractor Req]
+        S2 --> S3[Extractor LLM<br/>Gemini 2.5 directo<br/>JSON estricto]
+        S3 --> S4[Parse JSON defensivo]
+        S4 --> S5[Estado Slots<br/>código determinista<br/>never-downgrade]
+        S5 --> S6[Persist Estado<br/>UPDATE BD]
+        S6 --> S7[Redactor<br/>Gemini 3.1-lite + RAG<br/>1 mensaje ≤1 pregunta]
+        S7 --> S8[dividir_output<br/>chunks + senales]
     end
 
-    subgraph WF25["WF2.5 · AI Brain PMV 🟢"]
+    subgraph WF3[WF3 · Render Nano Banana]
         direction TB
-        B25[AI Agent + Memoria<br/>RAG PGVector<br/>Verificador estructurado]
+        R1[Get Prefs] --> R2[Build Prompt dinámico]
+        R2 --> R3[Nano Banana<br/>fachada + logo]
+        R3 --> R4[Subir Supabase Storage]
+        R4 --> R5[Enviar Render WA<br/>+ caption comercial]
+        R5 --> R6[Marcar Render BD]
+        R6 --> R7[Registrar Render Sheets]
     end
 
-    subgraph WF26["WF2.6 · AI Brain Fachadas 🟢"]
-        direction TB
-        B26[AI Agent especializado<br/>Memoria + RAG Fachadas<br/>Verificador + Detector]
-    end
-
-    subgraph WF3["WF3 · Render Nano Banana 🟢"]
-        direction TB
-        R1[Get YCloud Media URL]
-        R2[Download Image]
-        R3[Nano Banana Render]
-        R4[Decode + Upload YCloud]
-        R5[Enviar Render WA]
-        R6[Marcar Render BD]
-        R1-->R2-->R3-->R4-->R5-->R6
-    end
-
-    subgraph WF4["WF4 · Alerta Comercial 🟢"]
-        direction TB
-        AL[Construir email plantilla<br/>→ Gmail → Marcar avisado]
-    end
-
-    subgraph WF5["WF5 · Descarte Cordial 🟢"]
-        direction TB
-        DC[Build Message<br/>→ YCloud → Marcar descartado]
-    end
-
-    subgraph WF6["WF6 · Chatwoot Mirror 🟢"]
-        direction TB
-        MR[Espeja mensaje in/out<br/>en conversación Chatwoot]
-    end
+    WF4[WF4 · Alerta Comercial<br/>email con render+foto+logo]
+    WF5[WF5 · Descarte Cordial<br/>WA + deriva a RRSS]
+    WF6[WF6 · Chatwoot Mirror<br/>espeja in/out + media]
 
     FB ==>|trigger| WF1
-    WF1 -->|si Filtro Oro| WF4
-    WF1 -.->|guarda| DB
+    WF1 -->|si Oro| WF4
+    WF1 -.->|upsert| DB
+    WF1 -->|template| WA
 
     WA ==>|webhook| WF2
-    WF2 -.->|mirror in| WF6
-    WF2 -->|cualificado + foto| WF3
-    WF2 -->|texto rama Fachadas| WF26
-    WF2 -->|texto otros| WF25
-    WF2 -->|signals oro/urgencia| WF4
-    WF2 -->|ppto <3000| WF5
-    WF25 -->|respuesta| WA
-    WF26 -->|respuesta| WA
-    WF2 <-.->|estado lead| DB
-    WF2 -.->|mirror out| WF6
+    A1 -.->|push/pop| REDIS
+    WF2 -->|texto| SF
+    SF -.->|estado| DB
+    SF -.->|RAG| PGV
+    SF -->|chunks + senales| WF2
+    WF2 -->|alertas combinadas / render listo| WF4
+    WF2 -->|descarte| WF5
+    WF2 -->|imagen fachada| WF3
+    WF2 -->|envía| WA
+    WF2 -->|in/out| WF6
+    WF2 -->|6 hojas:<br/>Foto/Logo/Motivo/Estilo/Ubicación/Tamaño| SHEETS
 
-    WF3 -->|envía| WA
+    WF3 -.->|guarda media| STORAGE
+    WF3 -->|envía render| WA
     WF3 -->|render listo| WF4
-    WF3 -.->|marca render_url| DB
+    WF3 -->|Sheets boceto| SHEETS
+    WF3 -.->|render_url + fase| DB
 
     WF4 -->|email| EMAIL
-    WF5 -->|mensaje| WA
-    WF6 -->|mensaje espejo| CHAT
+    WF5 -->|cierre cordial| WA
+    WF5 -->|mirror| WF6
+    WF6 -->|espeja conversación| CHATW
 
     JINA -.->|scraping| WF1
     GEMINI -.->|IA| WF1
-    GEMINI -.->|IA| WF25
-    GEMINI -.->|IA| WF26
+    GEMINI -.->|extractor + redactor| SF
     NANO -.->|render| WF3
 
-    classDef existing fill:#d4f4dd,stroke:#2d7a3a,color:#000
-    classDef new fill:#fde2c4,stroke:#a85b00,color:#000
+    classDef wf fill:#d4f4dd,stroke:#2d7a3a,color:#000
+    classDef brain fill:#fde2c4,stroke:#a85b00,color:#000
     classDef external fill:#f0f0f0,stroke:#666,color:#000
     classDef datastore fill:#cce5ff,stroke:#0066cc,color:#000
 
-    class WF1,WF2,WF25,WF26,WF3,WF4,WF5,WF6 existing
-    class FB,WA,EMAIL,JINA,GEMINI,NANO,CHAT external
-    class DB datastore
+    class WF1,WF2,WF3,WF4,WF5,WF6 wf
+    class SF brain
+    class FB,WA,EMAIL,SHEETS,CHATW,JINA,GEMINI,NANO external
+    class DB,REDIS,STORAGE,PGV datastore
         </div>
         <div class="legend">
-            <span class="existing">Workflow construido y activo</span>
+            <span class="existing">Workflow productivo</span>
+            <span class="new">Cerebro slot-filling (WF2.6-SF)</span>
             <span class="external">Servicio externo</span>
             <span class="datastore">Datastore</span>
         </div>
@@ -309,87 +304,118 @@ flowchart LR
 
     <section id="estados">
         <h2>3. Estados del lead</h2>
-        <p class="lead">Los estados que recorre un lead desde que entra hasta que sale del sistema. Tres salidas posibles, cada una con su trazabilidad.</p>
+        <p class="lead">Los estados que recorre un lead. La conversación con el agente se queda en <code>agente_whatsapp</code> mientras se completan los 6 slots; el estado real avanza con cada slot (presupuesto, dimensiones, motivo, dirección, estilo, logo). Tres salidas finales: contacto comercial directo, cierre de visita técnica tras render, o descarte cordial.</p>
         <div class="mermaid">
 stateDiagram-v2
     [*] --> Recibido: FB Lead Ads
-    Recibido --> Enriquecido: scrape + análisis
-    Enriquecido --> ComercialDirecto: pasa Filtro Oro
-    Enriquecido --> EnConversacion: no pasa Filtro Oro
-    EnConversacion --> AlertaIntermedia: apertura/urgencia/>20m
-    AlertaIntermedia --> EnConversacion: comercial sigue + bot continúa
-    EnConversacion --> EsperandoFoto: presupuesto cualificado
-    EsperandoFoto --> RenderEnviado: cliente envía foto
-    RenderEnviado --> CerrarVisita: alerta render listo
-    EnConversacion --> Descartado: presupuesto < 3000
+    Recibido --> Enriquecido: WF1 enrichment
+
+    Enriquecido --> ComercialDirecto: Filtro Oro ✅
+    Enriquecido --> AgenteWhatsapp: Filtro Oro ❌<br/>template inicial enviado
+
+    state AgenteWhatsapp {
+        [*] --> SlotPresupuesto
+        SlotPresupuesto --> SlotDimensiones: cualificado
+        SlotPresupuesto --> Reencuadre: zona_gris
+        Reencuadre --> SlotPresupuesto: reintento
+        SlotDimensiones --> SlotMotivo: m capturados
+        SlotMotivo --> SlotDireccion: motivo capturado
+        SlotDireccion --> SlotEstilo: dirección real<br/>(dígito o calle/avda)
+        SlotEstilo --> SlotLogo: enum capturado
+        SlotLogo --> PedirImagenLogo: logo=tiene
+        SlotLogo --> PedirImagenFachada: logo=crear
+        PedirImagenLogo --> PedirImagenFachada: logo recibido
+        PedirImagenFachada --> [*]: fachada recibida
+    }
+
+    AgenteWhatsapp --> Descartado: presupuesto descarte
+    AgenteWhatsapp --> EsperandoRender: fachada recibida<br/>(guard Datos Completos pasa)
+    EsperandoRender --> RenderEnviado: WF3 render OK
+    RenderEnviado --> ComercialDirecto: WF4 alerta render listo
+
     ComercialDirecto --> [*]
-    CerrarVisita --> [*]
     Descartado --> [*]
         </div>
     </section>
 
     <section id="secuencia">
-        <h2>4. Secuencia de una conversación cualificada</h2>
-        <p class="lead">Caso real paso a paso: cliente con apertura nueva + urgencia + fachada grande + presupuesto cualificado → alerta intermedia + render + cierre visita.</p>
+        <h2>4. Secuencia de una conversación cualificada (6 slots)</h2>
+        <p class="lead">Caso real grabado (lead Garvalín, 2026-05-20): apertura de conversación → 6 turnos de slot-filling determinista → logo + fachada como imágenes → render Nano Banana + alerta comercial. El cerebro nunca repite slots: si el cliente da varios datos en un mismo mensaje (turno 2), salta al siguiente hueco.</p>
         <div class="mermaid">
 sequenceDiagram
     autonumber
     actor C as 📱 Cliente
     participant Y as ☁️ YCloud
-    participant W2 as 🤖 WF2<br/>Router WA
-    participant W26 as 🧠 WF2.6<br/>Brain Fachadas
+    participant W2 as 🤖 WF2 router
+    participant SF as 🧠 WF2.6-SF
     participant DB as 🗄️ Postgres
-    participant W6 as 💼 WF6<br/>Chatwoot Mirror
-    participant W4 as 📧 WF4<br/>Alerta
-    participant W3 as 🎨 WF3<br/>Render
+    participant W3 as 🎨 WF3 Render
+    participant W4 as 📧 WF4 Alerta
     actor COM as 👤 Comercial
 
-    Note over C,COM: Lead ya enriquecido (no pasó Filtro Oro)
+    Note over C,COM: 6 slots: presupuesto → dim → motivo → dir → estilo → logo
 
-    C->>Y: "Necesito rotular mi nave,<br/>abro en 2 sem, 25m fachada"
-    Y->>W2: webhook + buffer Redis
-    W2->>W6: mirror in (Chatwoot)
-    W2->>DB: Find Lead Fachadas
-    W2->>W26: Is Fachadas = true → invocar
-    W26->>W26: AI Agent + RAG + verificador
-    Note right of W26: urgencia: alta,<br/>dimensiones: 25,<br/>fase: apertura_nueva
-    W26->>DB: Persist Signals
-    W2->>W4: Decide Alerts → urgencia + fachada_grande
-    W4->>COM: 📧 "Lead caliente, 25m, urge"
-    W2->>Y: respuesta WA (chunks + typing)
-    W2->>W6: mirror out (Chatwoot)
-    Y-->>C: 4 mensajes con typing
+    C->>Y: "hola, quiero rotular mi fachada"
+    Y->>W2: webhook + buffer 8s
+    W2->>SF: trigger (input_final, lead_id)
+    SF->>DB: Cargar Estado (lead vacío)
+    SF->>SF: Extractor → JSON estricto<br/>todo null
+    SF->>SF: Estado Slots<br/>→ objetivo: pedir_presupuesto
+    SF->>DB: Persist Estado
+    SF->>SF: Redactor + RAG → 1 msg, 1 pregunta
+    SF-->>W2: chunks + senales
+    W2->>Y: bucle envío (5s entre chunks)
+    Y-->>C: "¿inversión a largo plazo o algo puntual?"
 
-    C->>Y: "Ppto flexible, calidad lo primero"
+    C->>Y: "ppto abierto, calidad lo primero"
     Y->>W2: webhook
-    W2->>W26: invocar Brain Fachadas
-    W26->>W26: detecta budget_tier: cualificado
-    W26->>DB: actualiza presupuesto
-    W2->>Y: "¿Me mandas foto de la fachada?"
+    W2->>SF: trigger
+    Note right of SF: Extractor capta 2 slots:<br/>presupuesto=cualificado<br/>+ fase=renovacion (motivo)
+    SF->>DB: Persist
+    Note over SF: salta motivo (ya lleno)<br/>→ pedir_dimensiones
+    Y-->>C: "¿cuántos metros lineales?"
 
-    C->>Y: 📸 foto fachada
-    Y->>W2: webhook con media_id
-    Note right of W2: rama imagen<br/>Is Image = true
-    W2->>DB: Update Foto URL
+    C->>Y: "25 metros"
+    Note over SF: dim=25 → pedir_direccion
+    Y-->>C: "¿calle, número y población?"
+
+    C->>Y: "Calle Mayor 12, Orihuela"
+    Note over SF: cleanAddr ✓ (heurística positiva)<br/>→ pedir_estilo
+    Y-->>C: "¿moderno / minimalista / clásico / industrial?"
+
+    C->>Y: "moderno"
+    Note over SF: estilo=moderno → pedir_logo_decision
+    Y-->>C: "¿tienes logo o lo creamos?"
+
+    C->>Y: "tengo logo"
+    Note over SF: logo=tiene + sin logo_url<br/>→ pedir_imagen_logo
+    Y-->>C: "envíame el logo (JPG/PNG)"
+
+    C->>Y: 📸 logo (imagen)
+    Note over W2: rama imagen<br/>Datos Completos? ✅<br/>Es Logo? ✅
+    W2->>DB: logo_url + Sheets Logo
+    Y-->>C: "¡Logo recibido! ahora la fachada 📸"
+
+    C->>Y: 📸 fachada (imagen)
+    Note over W2: Datos Completos? ✅<br/>Es Logo? ❌ (logo_url ya seteado)
     W2->>W3: WF3 Render Dispatch
-    W3->>Y: descarga media
-    W3->>W3: Nano Banana (15-30s)
-    W3->>Y: upload render + envía WA
-    Y-->>C: 🎨 imagen renderizada
-    W3->>DB: marca render_url
-    W3->>W4: WF4 Render Listo
-    W4->>COM: 📧 "Cerrar visita técnica"
+    W3->>W3: Nano Banana (18s)
+    W3->>Y: render + caption nuevo
+    Y-->>C: 🎨 render "un comercial te contactará en breve"
+    W3->>DB: render_url + fase=render_enviado
+    W3->>W4: alerta render_listo
+    W4->>COM: 📧 email con render+foto+logo
         </div>
     </section>
 
     <section id="erd">
         <h2>5. Modelo de datos — tabla leads_fachadas</h2>
-        <p class="lead">Fuente única de verdad. Cada workflow lee y escribe aquí. La columna conversation_session_id permite enlazar con el histórico de la conversación del agente (memoria Postgres n8n_ai_agent).</p>
+        <p class="lead">Fuente única de verdad. Cada workflow lee y escribe aquí. <b>WF2.6-SF "Persist Estado"</b> es ahora el único nodo que modifica el estado conversacional (los antiguos Persist Signals/Prefs/Direccion en WF2 fueron retirados en la simplificación post-cutover). 40 columnas; <code>preferencias_render</code> es jsonb con sub-claves para el render personalizado.</p>
         <div class="mermaid">
 erDiagram
     leads_fachadas {
         serial id PK
-        text fb_lead_id UK "dedup"
+        text fb_lead_id UK "dedup FB"
         timestamptz created_at
         timestamptz updated_at
         text nombre
@@ -404,32 +430,35 @@ erDiagram
         int web_score "0-10 objetivo"
         boolean filtro_oro
         text filtro_oro_motivos
-        text fase_negocio "apertura|renovacion"
-        text tipo_renovacion "mudanza|moderniza|visibilidad|aislado"
+        text fase_negocio "apertura_nueva|renovacion"
+        text tipo_renovacion "modernizar|mudanza|visibilidad|aislado"
         text urgencia "alta|media|baja"
-        numeric dimensiones_m
-        text estado_presupuesto "cualificado|zona_gris|descarte"
+        numeric dimensiones_m "slot dimensiones"
+        text estado_presupuesto "cualificado|zona_gris|descarte|sin_info"
         int presupuesto_eur
-        text foto_url
-        text render_url
+        text direccion_fachada "slot dirección"
+        jsonb preferencias_render "estilo|logo|colores|tipo_letra|material_fachada|iluminacion"
+        text foto_url "Supabase Storage"
+        text logo_url "Supabase Storage"
+        text render_url "Supabase Storage"
         text fase "estado funnel"
         boolean comercial_avisado
         text comercial_avisado_motivo
         timestamptz comercial_avisado_at
-        jsonb enrichment_raw "dump análisis"
-        text conversation_session_id FK
+        text icebreakers
+        text oportunidades
+        int web_checks_passed
+        boolean template_inicial_enviado
+        timestamptz template_inicial_enviado_at
+        text template_inicial_message_id
+        text conversation_session_id "número WhatsApp"
+        jsonb enrichment_raw "dump análisis IA"
     }
-    n8n_ai_agent {
-        text session_id PK "= numero WA"
-        jsonb message "historial"
-        timestamptz created_at
-    }
-    leads_fachadas ||--o{ n8n_ai_agent : "tiene conversacion"
         </div>
     </section>
 
     <footer>
-        Sistema PMV Factory · Funnel Fachadas · Actualizado 2026-05-13
+        Sistema PMV Factory · Funnel Fachadas · Actualizado 2026-05-20 (post slot-filling redesign)
     </footer>
 </div>
 <script>

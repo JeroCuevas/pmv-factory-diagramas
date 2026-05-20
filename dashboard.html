@@ -2,18 +2,20 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>PMV Factory · Dashboard Fachadas</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <title>Dashboard PMV Fachadas</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <style>
         :root {
             --bg: #0f0f1e;
             --panel: #1a1a2e;
             --panel-light: #252540;
+            --text: #f0f0f8;
+            --muted: #9090a8;
             --accent: #f59e0b;
             --good: #10b981;
             --bad: #ef4444;
-            --muted: #8a8aa0;
-            --text: #f0f0f8;
+            --info: #3b82f6;
+            --warn: #f59e0b;
             --border: #2a2a40;
         }
         * { box-sizing: border-box; }
@@ -23,100 +25,308 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
             margin: 0;
             padding: 24px;
-            min-height: 100vh;
+            font-size: 14px;
         }
         header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 24px;
-            padding-bottom: 16px;
+            margin-bottom: 28px;
             border-bottom: 1px solid var(--border);
+            padding-bottom: 16px;
         }
         header h1 { margin: 0; font-size: 1.6rem; }
-        header .meta { color: var(--muted); font-size: 0.9rem; }
-        #status { padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; }
-        #status.ok { background: var(--good); color: white; }
-        #status.err { background: var(--bad); color: white; }
-        #status.loading { background: var(--accent); color: white; }
+        header .meta { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+        #status { font-size: 0.85rem; padding: 6px 12px; border-radius: 6px; background: var(--panel); }
+        #status.loading { color: var(--muted); }
+        #status.ok { color: var(--good); }
+        #status.err { color: var(--bad); }
 
         .kpis {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 12px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+            gap: 14px;
+            margin-bottom: 28px;
         }
         .kpi {
             background: var(--panel);
-            padding: 16px 20px;
-            border-radius: 10px;
             border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 16px;
         }
-        .kpi .label {
-            color: var(--muted);
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .kpi .value {
-            font-size: 1.8rem;
-            font-weight: 600;
-            margin-top: 4px;
-        }
-        .kpi.gold .value { color: var(--accent); }
-        .kpi.good .value { color: var(--good); }
-        .kpi.bad .value { color: var(--bad); }
+        .kpi .label { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .kpi .value { font-size: 1.8rem; font-weight: 600; margin-top: 4px; }
+        .kpi.gold { background: linear-gradient(135deg, #d97706, #f59e0b); border-color: transparent; }
+        .kpi.good { border-left: 3px solid var(--good); }
+        .kpi.bad  { border-left: 3px solid var(--bad); }
+        .kpi.info { border-left: 3px solid var(--info); }
+        .kpi.warn { border-left: 3px solid var(--warn); }
 
         .charts {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-            gap: 20px;
-            margin-bottom: 24px;
+            gap: 18px;
+            margin-bottom: 28px;
         }
         .chart-card {
             background: var(--panel);
-            padding: 20px;
-            border-radius: 10px;
             border: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
+            border-radius: 10px;
+            padding: 16px;
+            min-height: 280px;
         }
-        .chart-card h3 { margin: 0 0 12px; font-size: 1rem; }
-        .chart-wrap {
-            position: relative;
-            height: 260px;
-            width: 100%;
-        }
-        .chart-wrap canvas { max-height: 260px !important; }
+        .chart-card h3 { margin: 0 0 14px; font-size: 1rem; color: var(--text); }
+        .chart-card canvas { max-height: 240px; }
 
         .table-wrap {
             background: var(--panel);
-            padding: 20px;
-            border-radius: 10px;
             border: 1px solid var(--border);
-            overflow-x: auto;
+            border-radius: 10px;
+            padding: 20px;
         }
-        .table-wrap h3 { margin: 0 0 12px; font-size: 1rem; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-        th, td {
-            padding: 8px 10px;
-            text-align: left;
+        .table-wrap h3 { margin: 0 0 14px; font-size: 1.05rem; }
+
+        .filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 14px;
+            padding-bottom: 14px;
             border-bottom: 1px solid var(--border);
         }
-        th { color: var(--muted); font-weight: 500; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }
-        tr:hover td { background: var(--panel-light); }
+        .filter-bar input[type="search"] {
+            flex: 1;
+            min-width: 220px;
+            padding: 8px 12px;
+            background: var(--panel-light);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 0.92rem;
+        }
+        .filter-bar input[type="search"]::placeholder { color: var(--muted); }
+        .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+        .chip {
+            background: var(--panel-light);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 6px 12px;
+            border-radius: 14px;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .chip:hover { background: var(--border); }
+        .chip.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #1a1a2e;
+            font-weight: 600;
+        }
+        .filter-bar .toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--panel-light);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 6px 12px;
+            border-radius: 14px;
+            font-size: 0.82rem;
+            cursor: pointer;
+        }
+        .filter-bar .toggle.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #1a1a2e;
+            font-weight: 600;
+        }
+        .filter-count {
+            color: var(--muted);
+            font-size: 0.82rem;
+            margin-left: auto;
+        }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+        th, td {
+            text-align: left;
+            padding: 9px 10px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+        th { color: var(--muted); font-weight: 500; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.5px; }
+        tbody tr { cursor: pointer; transition: background 0.12s; }
+        tbody tr:hover td { background: var(--panel-light); }
+
         .badge {
             padding: 2px 8px;
             border-radius: 10px;
-            font-size: 0.75rem;
+            font-size: 0.72rem;
             font-weight: 500;
+            display: inline-block;
         }
-        .badge.gold { background: var(--accent); color: white; }
+        .badge.gold { background: var(--accent); color: #1a1a2e; }
         .badge.fase-enriquecido { background: var(--panel-light); color: var(--text); }
-        .badge.fase-comercial_directo { background: var(--accent); color: white; }
+        .badge.fase-agente_whatsapp { background: var(--info); color: white; }
+        .badge.fase-esperando_render { background: #8b5cf6; color: white; }
         .badge.fase-render_enviado { background: var(--good); color: white; }
+        .badge.fase-comercial_directo { background: var(--accent); color: #1a1a2e; }
         .badge.fase-descartado { background: var(--bad); color: white; }
+        .badge.presup-cualificado { background: var(--good); color: white; }
+        .badge.presup-zona_gris { background: var(--warn); color: #1a1a2e; }
+        .badge.presup-descarte { background: var(--bad); color: white; }
+        .badge.presup-sin_info { background: var(--panel-light); color: var(--muted); }
+        .badge.urg-alta { background: var(--bad); color: white; }
+        .badge.urg-media { background: var(--warn); color: #1a1a2e; }
+        .badge.urg-baja { background: var(--panel-light); color: var(--text); }
+
         .empty { color: var(--muted); text-align: center; padding: 40px; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.65);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 5000;
+            padding: 20px;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            width: 100%;
+            max-width: 900px;
+            max-height: 92vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+        .modal-header h2 { margin: 0; font-size: 1.2rem; }
+        .modal-header .subtitle { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--muted);
+            font-size: 1.8rem;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+        .modal-close:hover { color: var(--text); }
+        .tabs {
+            display: flex;
+            gap: 4px;
+            padding: 12px 24px 0;
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+        }
+        .tab {
+            background: transparent;
+            border: none;
+            color: var(--muted);
+            padding: 10px 14px;
+            cursor: pointer;
+            font-size: 0.88rem;
+            border-bottom: 2px solid transparent;
+            white-space: nowrap;
+        }
+        .tab:hover { color: var(--text); }
+        .tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+            font-weight: 600;
+        }
+        .modal-body {
+            padding: 20px 24px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+        .kv-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 24px;
+        }
+        .kv {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .kv.full { grid-column: 1 / -1; }
+        .kv .k { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.4px; }
+        .kv .v { color: var(--text); font-size: 0.95rem; word-break: break-word; white-space: normal; }
+        .kv .v.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
+        .kv .v a { color: var(--info); text-decoration: none; }
+        .kv .v a:hover { text-decoration: underline; }
+        .kv .v.dim { color: var(--muted); }
+        .media-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        .media-item {
+            background: var(--panel-light);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .media-item .label { padding: 8px 12px; color: var(--muted); font-size: 0.8rem; }
+        .media-item img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            display: block;
+            background: #000;
+        }
+        .media-item .placeholder {
+            width: 100%;
+            height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--muted);
+            font-size: 0.9rem;
+            background: #000;
+        }
+        .web-score-bar {
+            display: inline-block;
+            width: 80px;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            margin-left: 6px;
+            vertical-align: middle;
+            position: relative;
+        }
+        .web-score-bar > div {
+            position: absolute;
+            top: 0; left: 0; bottom: 0;
+            background: var(--accent);
+            border-radius: 3px;
+        }
+        @media (max-width: 640px) {
+            .kv-grid { grid-template-columns: 1fr; }
+            .modal { max-height: 100vh; border-radius: 0; }
+        }
     </style>
 </head>
 <body>
@@ -131,23 +341,62 @@
     <section class="kpis" id="kpis"></section>
 
     <section class="charts">
-        <div class="chart-card"><h3>📊 Distribución por fase</h3><div class="chart-wrap"><canvas id="chart-fase"></canvas></div></div>
-        <div class="chart-card"><h3>📈 Filtros de Oro mensuales</h3><div class="chart-wrap"><canvas id="chart-mensual"></canvas></div></div>
-        <div class="chart-card"><h3>🏢 Distribución por tamaño</h3><div class="chart-wrap"><canvas id="chart-tamano"></canvas></div></div>
-        <div class="chart-card"><h3>💶 Estado de presupuesto</h3><div class="chart-wrap"><canvas id="chart-presupuesto"></canvas></div></div>
+        <div class="chart-card"><h3>📊 Distribución por fase</h3><canvas id="chart-fase"></canvas></div>
+        <div class="chart-card"><h3>💶 Estado de presupuesto</h3><canvas id="chart-presupuesto"></canvas></div>
+        <div class="chart-card"><h3>⏱️ Urgencia detectada</h3><canvas id="chart-urgencia"></canvas></div>
+        <div class="chart-card"><h3>🧩 Slot completion (leads activos)</h3><canvas id="chart-slots"></canvas></div>
+        <div class="chart-card"><h3>📈 Filtros de Oro mensuales</h3><canvas id="chart-mensual"></canvas></div>
+        <div class="chart-card"><h3>🏢 Distribución por tamaño</h3><canvas id="chart-tamano"></canvas></div>
     </section>
 
     <section class="table-wrap">
-        <h3>📋 Últimos leads</h3>
+        <h3>📋 Leads (últimos 200)</h3>
+        <div class="filter-bar">
+            <input id="search" type="search" placeholder="🔍 Buscar por empresa, nombre o teléfono…" autocomplete="off">
+            <div class="chips" id="fase-chips"></div>
+            <button class="toggle" id="oro-toggle">🏆 Solo Filtro Oro</button>
+            <div class="filter-count" id="filter-count">—</div>
+        </div>
         <table id="tabla-leads">
             <thead>
                 <tr>
-                    <th>Fecha</th><th>Nombre</th><th>Empresa</th><th>Tel.</th><th>Tamaño</th><th>Zona</th><th>Web</th><th>Filtro Oro</th><th>Fase</th>
+                    <th>Fecha</th><th>Empresa</th><th>Contacto</th><th>Tel.</th><th>Tamaño</th><th>Zona</th>
+                    <th>Web</th><th>Oro</th><th>Presupuesto</th><th>Dim</th><th>Urg.</th><th>Fase</th><th>Render</th>
                 </tr>
             </thead>
-            <tbody><tr><td colspan="9" class="empty">Cargando…</td></tr></tbody>
+            <tbody><tr><td colspan="13" class="empty">Cargando…</td></tr></tbody>
         </table>
     </section>
+
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <h2 id="modal-title">—</h2>
+                    <div class="subtitle" id="modal-subtitle">—</div>
+                </div>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <nav class="tabs" id="modal-tabs">
+                <button class="tab active" data-tab="contacto">📞 Contacto</button>
+                <button class="tab" data-tab="clasif">🏭 Clasificación</button>
+                <button class="tab" data-tab="slots">💬 Slots</button>
+                <button class="tab" data-tab="marketing">🎯 Marketing</button>
+                <button class="tab" data-tab="estado">🚦 Estado</button>
+                <button class="tab" data-tab="media">🖼️ Media</button>
+                <button class="tab" data-tab="fechas">🕒 Fechas</button>
+            </nav>
+            <div class="modal-body">
+                <div class="tab-pane active" id="tab-contacto"></div>
+                <div class="tab-pane" id="tab-clasif"></div>
+                <div class="tab-pane" id="tab-slots"></div>
+                <div class="tab-pane" id="tab-marketing"></div>
+                <div class="tab-pane" id="tab-estado"></div>
+                <div class="tab-pane" id="tab-media"></div>
+                <div class="tab-pane" id="tab-fechas"></div>
+            </div>
+        </div>
+    </div>
 
 <script>
 const SUPABASE_URL = 'https://app-supabase.pmvfactory.top';
@@ -166,113 +415,397 @@ function xorDecrypt(b64, password) {
 
 let ANON_KEY = null;
 let headers = null;
+let allLeads = [];
+let chartFase, chartPresupuesto, chartUrgencia, chartSlots, chartMensual, chartTamano;
+const filterState = { search: '', fase: 'all', oro: false };
 
-async function get(view) {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${view}?select=*`, { headers });
-    if (!r.ok) throw new Error(`${view}: ${r.status}`);
+async function get(path) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers });
+    if (!r.ok) throw new Error(`${path}: ${r.status}`);
     return r.json();
 }
 
 const PALETTE = ['#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
 
+function fmtNum(n) { return (n == null) ? '—' : Number(n).toLocaleString('es-ES'); }
+function fmtPct(n, d) { return d > 0 ? Math.round(100 * n / d) + '%' : '—'; }
+function fmtDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleString('es-ES', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+function fmtDateShort(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'numeric' });
+}
+function bool(b) { return b === true ? '✅' : b === false ? '❌' : '—'; }
+function esc(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
 function renderKpis(funnel) {
     const f = funnel[0] || {};
-    const pct = (n, d) => d > 0 ? Math.round(100 * n / d) + '%' : '—';
     document.getElementById('kpis').innerHTML = `
-      <div class="kpi"><div class="label">Total leads</div><div class="value">${f.total_leads || 0}</div></div>
-      <div class="kpi gold"><div class="label">Filtros de Oro</div><div class="value">${f.filtro_oro || 0}</div></div>
-      <div class="kpi"><div class="label">Comerciales avisados</div><div class="value">${f.comercial_avisado || 0}</div></div>
-      <div class="kpi good"><div class="label">Renders enviados</div><div class="value">${f.renders_enviados || 0}</div></div>
-      <div class="kpi"><div class="label">Cierres pendientes</div><div class="value">${f.cierres_pendientes || 0}</div></div>
-      <div class="kpi bad"><div class="label">Descartados</div><div class="value">${f.descartados || 0}</div></div>
-      <div class="kpi"><div class="label">Conversión a Oro</div><div class="value">${pct(f.filtro_oro, f.total_leads)}</div></div>
+      <div class="kpi"><div class="label">Total leads</div><div class="value">${fmtNum(f.total_leads)}</div></div>
+      <div class="kpi gold"><div class="label">Filtros de Oro</div><div class="value">${fmtNum(f.filtro_oro)}</div></div>
+      <div class="kpi good"><div class="label">Cualificados</div><div class="value">${fmtNum(f.cualificados)}</div></div>
+      <div class="kpi warn"><div class="label">Zona gris</div><div class="value">${fmtNum(f.zona_gris)}</div></div>
+      <div class="kpi bad"><div class="label">Descarte ppto</div><div class="value">${fmtNum(f.descarte_presupuesto)}</div></div>
+      <div class="kpi info"><div class="label">Renders enviados</div><div class="value">${fmtNum(f.renders_enviados)}</div></div>
+      <div class="kpi warn"><div class="label">Renders pendientes</div><div class="value">${fmtNum(f.renders_pendientes)}</div></div>
+      <div class="kpi info"><div class="label">Comerciales avisados</div><div class="value">${fmtNum(f.comercial_avisado)}</div></div>
+      <div class="kpi warn"><div class="label">Avisos pendientes</div><div class="value">${fmtNum(f.avisos_pendientes)}</div></div>
+      <div class="kpi good"><div class="label">Cierre directo</div><div class="value">${fmtNum(f.comercial_directos)}</div></div>
+      <div class="kpi bad"><div class="label">Descartados</div><div class="value">${fmtNum(f.descartados)}</div></div>
+      <div class="kpi"><div class="label">Avg h lead→render</div><div class="value">${f.avg_horas_lead_render != null ? Number(f.avg_horas_lead_render).toFixed(1) + 'h' : '—'}</div></div>
+      <div class="kpi"><div class="label">Conv. a Oro</div><div class="value">${fmtPct(f.filtro_oro, f.total_leads)}</div></div>
     `;
 }
 
-function renderChart(canvasId, type, labels, data, label) {
+function renderChart(canvasId, type, labels, data, opts = {}) {
     const ctx = document.getElementById(canvasId).getContext('2d');
     return new Chart(ctx, {
         type,
         data: {
             labels,
             datasets: [{
-                label: label || '',
+                label: opts.label || '',
                 data,
                 backgroundColor: type === 'line' ? PALETTE[0] : labels.map((_, i) => PALETTE[i % PALETTE.length]),
                 borderColor: type === 'line' ? PALETTE[0] : undefined,
                 tension: 0.3,
-                fill: type === 'line'
+                fill: type === 'line',
+                ...(opts.dataset || {})
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            indexAxis: opts.indexAxis || 'x',
             plugins: {
-                legend: { labels: { color: '#f0f0f8' }, display: type !== 'line' && type !== 'bar' }
+                legend: { labels: { color: '#f0f0f8' }, display: opts.legend ?? (type === 'pie' || type === 'doughnut') }
             },
             scales: (type === 'pie' || type === 'doughnut') ? {} : {
-                y: { ticks: { color: '#f0f0f8' }, grid: { color: '#2a2a40' } },
+                y: { ticks: { color: '#f0f0f8' }, grid: { color: '#2a2a40' }, beginAtZero: true },
                 x: { ticks: { color: '#f0f0f8' }, grid: { color: '#2a2a40' } }
             }
         }
     });
 }
 
-function renderTabla(leads) {
+function destroyCharts() {
+    [chartFase, chartPresupuesto, chartUrgencia, chartSlots, chartMensual, chartTamano].forEach(c => c && c.destroy());
+}
+
+function badgeFase(f) {
+    const fase = f || 'enriquecido';
+    return `<span class="badge fase-${esc(fase)}">${esc(fase)}</span>`;
+}
+function badgePresupuesto(p) {
+    if (!p) return '<span class="badge presup-sin_info">sin info</span>';
+    return `<span class="badge presup-${esc(p)}">${esc(p)}</span>`;
+}
+function badgeUrgencia(u) {
+    if (!u) return '—';
+    return `<span class="badge urg-${esc(u)}">${esc(u)}</span>`;
+}
+
+function getFases() {
+    const set = new Set(allLeads.map(l => l.fase || 'enriquecido'));
+    return ['all', ...Array.from(set).sort()];
+}
+
+function renderFaseChips() {
+    const fases = getFases();
+    document.getElementById('fase-chips').innerHTML = fases.map(f => `
+      <button class="chip${filterState.fase === f ? ' active' : ''}" data-fase="${esc(f)}">
+        ${f === 'all' ? 'Todas' : esc(f)}
+      </button>
+    `).join('');
+}
+
+function applyFilters() {
+    let arr = allLeads;
+    if (filterState.search) {
+        const q = filterState.search.toLowerCase();
+        arr = arr.filter(l =>
+            (l.empresa_nombre || '').toLowerCase().includes(q) ||
+            (l.nombre || '').toLowerCase().includes(q) ||
+            (l.telefono || '').toLowerCase().includes(q) ||
+            (l.email || '').toLowerCase().includes(q)
+        );
+    }
+    if (filterState.fase !== 'all') {
+        arr = arr.filter(l => (l.fase || 'enriquecido') === filterState.fase);
+    }
+    if (filterState.oro) {
+        arr = arr.filter(l => l.filtro_oro === true);
+    }
+    return arr;
+}
+
+function renderTabla() {
+    const arr = applyFilters();
+    document.getElementById('filter-count').textContent = `${arr.length} / ${allLeads.length}`;
     const tbody = document.querySelector('#tabla-leads tbody');
-    if (!leads.length) {
-        tbody.innerHTML = '<tr><td colspan="9" class="empty">Aún no hay leads. Activa WF1 y espera el primero.</td></tr>';
+    if (!arr.length) {
+        tbody.innerHTML = '<tr><td colspan="13" class="empty">No hay leads que cumplan los filtros.</td></tr>';
         return;
     }
-    tbody.innerHTML = leads.map(l => {
-        const fecha = new Date(l.created_at).toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'numeric' });
-        const fase = l.fase || 'enriquecido';
-        return `<tr>
+    tbody.innerHTML = arr.map(l => {
+        const fecha = fmtDateShort(l.created_at);
+        const presup = l.presupuesto_eur ? `${badgePresupuesto(l.estado_presupuesto)} ${fmtNum(l.presupuesto_eur)}€` : badgePresupuesto(l.estado_presupuesto);
+        const renderCell = l.render_url ? `<a href="${esc(l.render_url)}" target="_blank" onclick="event.stopPropagation()">🎨</a>` : '—';
+        return `<tr data-id="${l.id}">
             <td>${fecha}</td>
-            <td>${l.nombre || '—'}</td>
-            <td>${l.empresa_nombre || '—'}</td>
-            <td>${l.telefono || '—'}</td>
-            <td>${l.tamano || '—'}</td>
-            <td>${l.zona || '—'}</td>
+            <td title="${esc(l.empresa_nombre || '')}">${esc(l.empresa_nombre) || '—'}</td>
+            <td title="${esc(l.nombre || '')}">${esc(l.nombre) || '—'}</td>
+            <td>${esc(l.telefono) || '—'}</td>
+            <td>${esc(l.tamano) || '—'}</td>
+            <td>${esc(l.zona) || '—'}</td>
             <td>${l.web_score != null ? l.web_score + '/10' : '—'}</td>
-            <td>${l.filtro_oro ? '<span class="badge gold">🏆 ORO</span>' : '—'}</td>
-            <td><span class="badge fase-${fase}">${fase}</span></td>
+            <td>${l.filtro_oro ? '<span class="badge gold">🏆</span>' : '—'}</td>
+            <td>${presup}</td>
+            <td>${l.dimensiones_m != null ? Number(l.dimensiones_m) + 'm' : '—'}</td>
+            <td>${badgeUrgencia(l.urgencia)}</td>
+            <td>${badgeFase(l.fase)}</td>
+            <td>${renderCell}</td>
         </tr>`;
     }).join('');
+    tbody.querySelectorAll('tr[data-id]').forEach(tr => {
+        tr.addEventListener('click', () => openModal(Number(tr.dataset.id)));
+    });
 }
+
+// --- Modal ---
+function tabSwitch(tabId) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabId));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tabId));
+}
+document.getElementById('modal-tabs').addEventListener('click', e => {
+    if (e.target.matches('.tab')) tabSwitch(e.target.dataset.tab);
+});
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+});
+
+function kv(label, value, opts = {}) {
+    if (value === undefined || value === null || value === '') {
+        return `<div class="kv${opts.full ? ' full' : ''}"><div class="k">${esc(label)}</div><div class="v dim">—</div></div>`;
+    }
+    return `<div class="kv${opts.full ? ' full' : ''}"><div class="k">${esc(label)}</div><div class="v${opts.mono ? ' mono' : ''}">${opts.html ? value : esc(value)}</div></div>`;
+}
+
+function mediaItem(label, url) {
+    if (!url) {
+        return `<div class="media-item"><div class="label">${esc(label)}</div><div class="placeholder">— sin imagen —</div></div>`;
+    }
+    return `<div class="media-item">
+        <div class="label">${esc(label)} · <a href="${esc(url)}" target="_blank">abrir</a></div>
+        <a href="${esc(url)}" target="_blank"><img src="${esc(url)}" alt="${esc(label)}" loading="lazy"></a>
+    </div>`;
+}
+
+async function openModal(id) {
+    const overlay = document.getElementById('modal-overlay');
+    overlay.classList.add('open');
+    tabSwitch('contacto');
+    document.getElementById('modal-title').textContent = 'Cargando…';
+    document.getElementById('modal-subtitle').textContent = '';
+    ['contacto','clasif','slots','marketing','estado','media','fechas'].forEach(t => {
+        document.getElementById('tab-' + t).innerHTML = '<div class="empty">Cargando…</div>';
+    });
+    try {
+        const rows = await get(`v_lead_detalle?id=eq.${id}&select=*&limit=1`);
+        const l = rows[0];
+        if (!l) throw new Error('Lead no encontrado');
+        document.getElementById('modal-title').innerHTML = `${esc(l.empresa_nombre) || '— sin empresa —'} ${l.filtro_oro ? '<span class="badge gold">🏆 ORO</span>' : ''}`;
+        document.getElementById('modal-subtitle').innerHTML = `${esc(l.nombre || '—')} · ${esc(l.telefono || '—')} · ${badgeFase(l.fase)} <span class="kv-id" style="color:var(--muted);margin-left:8px;font-size:0.8rem;">ID #${l.id}</span>`;
+        renderTabContacto(l);
+        renderTabClasif(l);
+        renderTabSlots(l);
+        renderTabMarketing(l);
+        renderTabEstado(l);
+        renderTabMedia(l);
+        renderTabFechas(l);
+    } catch (e) {
+        document.getElementById('modal-title').textContent = 'Error';
+        document.getElementById('tab-contacto').innerHTML = `<div class="empty">Error: ${esc(e.message)}</div>`;
+    }
+}
+function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+}
+
+function renderTabContacto(l) {
+    const tel = l.telefono ? `<a href="tel:${esc(l.telefono)}">${esc(l.telefono)}</a>` : null;
+    const mail = l.email ? `<a href="mailto:${esc(l.email)}">${esc(l.email)}</a>` : null;
+    const web = l.website ? `<a href="${esc(l.website)}" target="_blank">${esc(l.website)}</a>` : null;
+    document.getElementById('tab-contacto').innerHTML = `
+      <div class="kv-grid">
+        ${kv('Nombre', l.nombre)}
+        ${kv('Empresa', l.empresa_nombre)}
+        ${kv('Teléfono', tel, { html: true })}
+        ${kv('Email', mail, { html: true })}
+        ${kv('Website', web, { html: true, full: true })}
+        ${kv('FB Lead ID', l.fb_lead_id, { mono: true, full: true })}
+      </div>`;
+}
+function renderTabClasif(l) {
+    const score = l.web_score != null
+        ? `${l.web_score}/10 <span class="web-score-bar"><div style="width:${(l.web_score||0)*10}%"></div></span>`
+        : '—';
+    const oro = l.filtro_oro
+        ? `<span class="badge gold">🏆 Filtro Oro</span>`
+        : '<span class="dim">No</span>';
+    document.getElementById('tab-clasif').innerHTML = `
+      <div class="kv-grid">
+        ${kv('¿Industrial?', bool(l.es_industrial), { html: true })}
+        ${kv('Tamaño empresa', l.tamano)}
+        ${kv('Zona', l.zona)}
+        ${kv('¿Zona cercana?', bool(l.zona_cercana), { html: true })}
+        ${kv('Web score', score, { html: true })}
+        ${kv('Web checks passed', l.web_checks_passed)}
+        ${kv('Filtro Oro', oro, { html: true })}
+        ${kv('Motivos Filtro Oro', l.filtro_oro_motivos, { full: true })}
+      </div>`;
+}
+function renderTabSlots(l) {
+    const pr = l.preferencias_render || {};
+    const presup = `${badgePresupuesto(l.estado_presupuesto)} ${l.presupuesto_eur ? fmtNum(l.presupuesto_eur) + ' €' : ''}`;
+    const motivo = [l.fase_negocio, l.tipo_renovacion].filter(Boolean).join(' · ') || null;
+    const urg = l.urgencia ? `<span class="badge urg-${esc(l.urgencia)}">${esc(l.urgencia)}</span>` : null;
+    document.getElementById('tab-slots').innerHTML = `
+      <div class="kv-grid">
+        ${kv('1️⃣ Presupuesto', presup, { html: true })}
+        ${kv('2️⃣ Dimensiones', l.dimensiones_m != null ? l.dimensiones_m + ' m' : null)}
+        ${kv('3️⃣ Motivo', motivo)}
+        ${kv('4️⃣ Dirección fachada', l.direccion_fachada, { full: true })}
+        ${kv('5️⃣ Estilo', pr.estilo)}
+        ${kv('6️⃣ Logo', pr.logo)}
+        ${kv('Urgencia', urg, { html: true })}
+        ${kv('Colores', pr.colores)}
+        ${kv('Tipo letra', pr.tipo_letra)}
+        ${kv('Material fachada', pr.material_fachada)}
+        ${kv('Iluminación', pr.iluminacion)}
+      </div>`;
+}
+function renderTabMarketing(l) {
+    document.getElementById('tab-marketing').innerHTML = `
+      <div class="kv-grid">
+        ${kv('Icebreakers', l.icebreakers, { full: true })}
+        ${kv('Oportunidades', l.oportunidades, { full: true })}
+      </div>`;
+}
+function renderTabEstado(l) {
+    const avisoMot = l.comercial_avisado_motivo ? esc(l.comercial_avisado_motivo) : '';
+    const aviso = l.comercial_avisado
+        ? `✅ avisado · ${fmtDate(l.comercial_avisado_at)} ${avisoMot ? '· ' + avisoMot : ''}`
+        : '<span class="dim">no avisado todavía</span>';
+    const template = l.template_inicial_enviado
+        ? `✅ enviado · ${fmtDate(l.template_inicial_enviado_at)} <span class="dim mono">${esc(l.template_inicial_message_id || '')}</span>`
+        : '<span class="dim">no enviado</span>';
+    document.getElementById('tab-estado').innerHTML = `
+      <div class="kv-grid">
+        ${kv('Fase actual', badgeFase(l.fase), { html: true })}
+        ${kv('Comercial avisado', aviso, { html: true, full: true })}
+        ${kv('Template inicial', template, { html: true, full: true })}
+        ${kv('Conversation session', l.conversation_session_id, { mono: true, full: true })}
+      </div>`;
+}
+function renderTabMedia(l) {
+    document.getElementById('tab-media').innerHTML = `
+      <div class="media-grid">
+        ${mediaItem('Foto fachada', l.foto_url)}
+        ${mediaItem('Logo cliente', l.logo_url)}
+        ${mediaItem('🎨 Render Nano Banana', l.render_url)}
+      </div>`;
+}
+function renderTabFechas(l) {
+    document.getElementById('tab-fechas').innerHTML = `
+      <div class="kv-grid">
+        ${kv('Creado', fmtDate(l.created_at))}
+        ${kv('Actualizado', fmtDate(l.updated_at))}
+        ${kv('Template enviado', fmtDate(l.template_inicial_enviado_at))}
+        ${kv('Comercial avisado', fmtDate(l.comercial_avisado_at))}
+      </div>`;
+}
+
+// --- Filtros listeners ---
+document.getElementById('search').addEventListener('input', e => {
+    filterState.search = e.target.value.trim();
+    renderTabla();
+});
+document.getElementById('fase-chips').addEventListener('click', e => {
+    if (!e.target.matches('.chip')) return;
+    filterState.fase = e.target.dataset.fase;
+    renderFaseChips();
+    renderTabla();
+});
+document.getElementById('oro-toggle').addEventListener('click', e => {
+    filterState.oro = !filterState.oro;
+    e.currentTarget.classList.toggle('active', filterState.oro);
+    renderTabla();
+});
 
 async function load() {
     const status = document.getElementById('status');
     try {
-        const [funnel, fases, mensual, tamano, presupuesto, leads] = await Promise.all([
-            get('v_funnel'),
-            get('v_leads_por_fase'),
-            get('v_filtros_oro_mensual'),
-            get('v_distribucion_tamano'),
-            get('v_estado_presupuesto'),
-            get('v_leads_recientes')
+        const [funnel, fases, urgencia, slots, mensual, tamano, presupuesto, leads] = await Promise.all([
+            get('v_funnel?select=*'),
+            get('v_leads_por_fase?select=*'),
+            get('v_urgencia?select=*'),
+            get('v_slot_completion?select=*'),
+            get('v_filtros_oro_mensual?select=*'),
+            get('v_distribucion_tamano?select=*'),
+            get('v_estado_presupuesto?select=*'),
+            get('v_leads_recientes?select=*')
         ]);
 
         renderKpis(funnel);
-        renderChart('chart-fase', 'doughnut',
+        destroyCharts();
+
+        chartFase = renderChart('chart-fase', 'doughnut',
             fases.map(r => r.fase),
             fases.map(r => r.total)
         );
-        renderChart('chart-mensual', 'line',
-            mensual.slice().reverse().map(r => r.mes),
-            mensual.slice().reverse().map(r => r.oros),
-            'Filtros de Oro'
-        );
-        renderChart('chart-tamano', 'bar',
-            tamano.map(r => r.tamano),
-            tamano.map(r => r.industriales),
-            'Industriales'
-        );
-        renderChart('chart-presupuesto', 'pie',
+        chartPresupuesto = renderChart('chart-presupuesto', 'pie',
             presupuesto.map(r => r.estado_presupuesto),
             presupuesto.map(r => r.total)
         );
-        renderTabla(leads);
+        chartUrgencia = renderChart('chart-urgencia', 'doughnut',
+            urgencia.map(r => r.urgencia),
+            urgencia.map(r => r.total)
+        );
+        const s = slots[0] || {};
+        const total = s.total_activos || 1;
+        chartSlots = renderChart('chart-slots', 'bar',
+            ['Presupuesto','Dimensiones','Motivo','Dirección','Estilo','Logo'],
+            [
+                Math.round(100 * (s.slot_presupuesto||0) / total),
+                Math.round(100 * (s.slot_dimensiones||0) / total),
+                Math.round(100 * (s.slot_motivo||0) / total),
+                Math.round(100 * (s.slot_direccion||0) / total),
+                Math.round(100 * (s.slot_estilo||0) / total),
+                Math.round(100 * (s.slot_logo||0) / total)
+            ],
+            { indexAxis: 'y', label: `% leads activos (${total})`, legend: true }
+        );
+        chartMensual = renderChart('chart-mensual', 'line',
+            mensual.slice().reverse().map(r => r.mes),
+            mensual.slice().reverse().map(r => r.oros),
+            { label: 'Filtros de Oro' }
+        );
+        chartTamano = renderChart('chart-tamano', 'bar',
+            tamano.map(r => r.tamano),
+            tamano.map(r => r.industriales),
+            { label: 'Industriales' }
+        );
+
+        allLeads = leads;
+        renderFaseChips();
+        renderTabla();
 
         status.textContent = 'Conectado · ' + new Date().toLocaleTimeString('es-ES');
         status.className = 'ok';
@@ -285,7 +818,6 @@ async function load() {
 
 async function tryUnlock(password) {
     const candidate = xorDecrypt(CIPHER_B64, password);
-    // Validar pidiendo /rest/v1/v_funnel
     const r = await fetch(`${SUPABASE_URL}/rest/v1/v_funnel?select=total_leads&limit=1`, {
         headers: { apikey: candidate, Authorization: `Bearer ${candidate}` }
     });
